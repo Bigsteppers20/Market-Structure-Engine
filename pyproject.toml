@@ -20,5 +20,4 @@ api = ["fastapi>=0.110", "uvicorn>=0.29"]
 packages = [
     "market_structure", "ml_pipeline", "training", "strategy", "strategies",
     "linear_regression", "logistic_regression", "model_monitor", "decision_engine", "api",
-    "forex_dynamics",
 ]

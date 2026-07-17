@@ -17,6 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import pipeline
+from .middleware import EngineVersionsMiddleware
 from .routers import decision, linear_regression, logistic_regression, market, monitor, strategy
 from .schemas import DecisionRequest, TrainRequest
 
@@ -32,6 +33,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
+app.add_middleware(EngineVersionsMiddleware)
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
