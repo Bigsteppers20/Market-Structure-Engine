@@ -191,8 +191,7 @@ def get_or_train_regression(
     return train_regression(symbol=symbol, timeframe=timeframe, count=count, window_size=window_size, horizon=horizon, stride=stride)
 
 
-def predict_regression(bundle: RegressionBundle) -> dict:
-    market_state = build_market_state(bundle.symbol, bundle.timeframe, bundle.window_size)
+def predict_regression(bundle: RegressionBundle, market_state: MarketState) -> dict:
     prediction = bundle.engine.predict(market_state, symbol=bundle.symbol, timeframe=bundle.timeframe)
     return prediction.to_dict()
 
@@ -263,7 +262,7 @@ def get_or_train_classification(
     return train_classification(symbol=symbol, timeframe=timeframe, count=count, window_size=window_size, horizon=horizon, stride=stride)
 
 
-def predict_classification(bundle: ClassificationBundle) -> dict:
+def predict_classification(bundle: ClassificationBundle, market_state: MarketState) -> dict:
     """Live production inference: returns ONLY the minimal prediction
     object (predicted direction + confidence + versions + model health) --
     never the full evaluation-oriented ``ClassificationPrediction`` (no
@@ -273,7 +272,6 @@ def predict_classification(bundle: ClassificationBundle) -> dict:
     used internally by the Decision Engine and Model Monitor -- both call
     ``bundle.engine.predict()`` directly (see ``make_decision()``/
     ``monitor_health()`` below), never this function."""
-    market_state = build_market_state(bundle.symbol, bundle.timeframe, bundle.window_size)
     prediction = bundle.engine.predict(market_state, symbol=bundle.symbol, timeframe=bundle.timeframe)
     return to_live_inference(prediction).to_dict()
 
@@ -283,7 +281,7 @@ def predict_classification(bundle: ClassificationBundle) -> dict:
 # regression/classification bundles.
 # --------------------------------------------------------------------------- #
 def make_decision(
-    *, symbol: str, timeframe: str, strategy_name: str, count: int = 2500,
+    *, symbol: str, timeframe: str, strategy_name: str, market_state: MarketState, count: int = 2500,
     window_size: int = 200, horizon: int = 5, stride: int = 3,
 ) -> dict:
     regression_bundle = get_or_train_regression(
@@ -292,7 +290,6 @@ def make_decision(
     classification_bundle = get_or_train_classification(
         symbol=symbol, timeframe=timeframe, count=count, window_size=window_size, horizon=horizon, stride=stride,
     )
-    market_state = build_market_state(symbol, timeframe, window_size)
     strategy_eval = evaluate_strategy(market_state, strategy_name, symbol, timeframe)
     regression_pred = regression_bundle.engine.predict(market_state, symbol=symbol, timeframe=timeframe)
     classification_pred = classification_bundle.engine.predict(market_state, symbol=symbol, timeframe=timeframe)

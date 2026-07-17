@@ -13,11 +13,11 @@ Then:
 """
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import pipeline
-from .middleware import EngineVersionsMiddleware
+from .middleware import EngineVersionsMiddleware, MarketStateMiddleware
 from .routers import decision, linear_regression, logistic_regression, market, monitor, strategy
 from .schemas import DecisionRequest, TrainRequest
 
@@ -34,6 +34,7 @@ app = FastAPI(
 )
 
 app.add_middleware(EngineVersionsMiddleware)
+app.add_middleware(MarketStateMiddleware)
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
@@ -114,12 +115,13 @@ def train_alias(request: TrainRequest) -> dict:
 
 
 @app.post("/decision", tags=["deprecated"], deprecated=True)
-def decision_alias(request: DecisionRequest) -> dict:
+def decision_alias(body: DecisionRequest, request: Request) -> dict:
     """Deprecated alias of POST /decision/predict."""
     try:
         return pipeline.make_decision(
-            symbol=request.symbol, timeframe=request.timeframe, strategy_name=request.strategy_name,
-            count=request.count, window_size=request.window_size, horizon=request.horizon, stride=request.stride,
+            symbol=body.symbol, timeframe=body.timeframe, strategy_name=body.strategy_name,
+            market_state=request.state.market_state,
+            count=body.count, window_size=body.window_size, horizon=body.horizon, stride=body.stride,
         )
     except pipeline.PipelineError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
