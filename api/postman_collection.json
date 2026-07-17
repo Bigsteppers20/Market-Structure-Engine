@@ -1,0 +1,214 @@
+{
+  "info": {
+    "name": "Forex Dynamics - Platform API",
+    "description": "Local testing collection for every analytical engine. Start the server first:\n\n.venv\\Scripts\\python.exe -m uvicorn api.main:app --reload --port 8000\n\nThen run these requests against http://127.0.0.1:8000. Training endpoints (Linear/Logistic Regression, Decision, Monitor) take ~10-30s on first call per symbol/timeframe combination, then are cached and fast.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8000" }
+  ],
+  "item": [
+    {
+      "name": "Meta",
+      "item": [
+        {
+          "name": "Root / API info",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/", "host": ["{{baseUrl}}"], "path": [""] }
+          }
+        },
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Market Structure Engine",
+      "item": [
+        {
+          "name": "Analyze live market",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/market/analyze?symbol=EUR_USD&timeframe=M5&window_size=200&count=250",
+              "host": ["{{baseUrl}}"], "path": ["market", "analyze"],
+              "query": [
+                { "key": "symbol", "value": "EUR_USD" },
+                { "key": "timeframe", "value": "M5" },
+                { "key": "window_size", "value": "200" },
+                { "key": "count", "value": "250" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Strategy Engine",
+      "item": [
+        {
+          "name": "List strategies",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/strategy/list", "host": ["{{baseUrl}}"], "path": ["strategy", "list"] }
+          }
+        },
+        {
+          "name": "Evaluate strategy",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/strategy/evaluate?symbol=EUR_USD&timeframe=M5&strategy_name=trend_following&window_size=200&count=250",
+              "host": ["{{baseUrl}}"], "path": ["strategy", "evaluate"],
+              "query": [
+                { "key": "symbol", "value": "EUR_USD" },
+                { "key": "timeframe", "value": "M5" },
+                { "key": "strategy_name", "value": "trend_following" },
+                { "key": "window_size", "value": "200" },
+                { "key": "count", "value": "250" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Linear Regression Engine",
+      "item": [
+        {
+          "name": "Train",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"EUR_USD\",\n  \"timeframe\": \"M5\",\n  \"count\": 2500,\n  \"window_size\": 200,\n  \"horizon\": 5,\n  \"stride\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/linear-regression/train", "host": ["{{baseUrl}}"], "path": ["linear-regression", "train"] }
+          }
+        },
+        {
+          "name": "Predict",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"EUR_USD\",\n  \"timeframe\": \"M5\",\n  \"count\": 2500,\n  \"window_size\": 200,\n  \"horizon\": 5,\n  \"stride\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/linear-regression/predict", "host": ["{{baseUrl}}"], "path": ["linear-regression", "predict"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logistic Regression Engine",
+      "item": [
+        {
+          "name": "Train",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"EUR_USD\",\n  \"timeframe\": \"M5\",\n  \"count\": 2500,\n  \"window_size\": 200,\n  \"horizon\": 5,\n  \"stride\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/logistic-regression/train", "host": ["{{baseUrl}}"], "path": ["logistic-regression", "train"] }
+          }
+        },
+        {
+          "name": "Predict",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"EUR_USD\",\n  \"timeframe\": \"M5\",\n  \"count\": 2500,\n  \"window_size\": 200,\n  \"horizon\": 5,\n  \"stride\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/logistic-regression/predict", "host": ["{{baseUrl}}"], "path": ["logistic-regression", "predict"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Decision Engine",
+      "item": [
+        {
+          "name": "Predict (full combined pipeline)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"EUR_USD\",\n  \"timeframe\": \"M5\",\n  \"strategy_name\": \"trend_following\",\n  \"count\": 2500,\n  \"window_size\": 200,\n  \"horizon\": 5,\n  \"stride\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/decision/predict", "host": ["{{baseUrl}}"], "path": ["decision", "predict"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Model Monitor",
+      "item": [
+        {
+          "name": "Health report (regression)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"EUR_USD\",\n  \"timeframe\": \"M5\",\n  \"task_type\": \"regression\",\n  \"count\": 2500,\n  \"window_size\": 200,\n  \"horizon\": 5,\n  \"stride\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/monitor/health", "host": ["{{baseUrl}}"], "path": ["monitor", "health"] }
+          }
+        },
+        {
+          "name": "Health report (classification)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"EUR_USD\",\n  \"timeframe\": \"M5\",\n  \"task_type\": \"classification\",\n  \"count\": 2500,\n  \"window_size\": 200,\n  \"horizon\": 5,\n  \"stride\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/monitor/health", "host": ["{{baseUrl}}"], "path": ["monitor", "health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deprecated aliases",
+      "item": [
+        {
+          "name": "Train (both models, flat alias)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"EUR_USD\",\n  \"timeframe\": \"M5\",\n  \"count\": 2500,\n  \"window_size\": 200,\n  \"horizon\": 5,\n  \"stride\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/train", "host": ["{{baseUrl}}"], "path": ["train"] }
+          }
+        },
+        {
+          "name": "Decision (flat alias)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"EUR_USD\",\n  \"timeframe\": \"M5\",\n  \"strategy_name\": \"trend_following\",\n  \"count\": 2500,\n  \"window_size\": 200,\n  \"horizon\": 5,\n  \"stride\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/decision", "host": ["{{baseUrl}}"], "path": ["decision"] }
+          }
+        }
+      ]
+    }
+  ]
+}

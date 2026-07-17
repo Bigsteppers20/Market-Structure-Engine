@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forex Dynamics — Personal Testing UI</title>
+<style>
+  :root {
+    --bg: #0f1420; --panel: #171d2c; --panel-2: #1e2637; --border: #2b3550;
+    --text: #e6e9f2; --muted: #8b93a7; --accent: #4f8cff;
+    --green: #2fbf71; --red: #e05a5a; --amber: #d9a441;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.4;
+  }
+  header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 17px; margin: 0; }
+  header .tag {
+    font-size: 11px; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 999px; padding: 2px 9px;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 20px; display: grid; gap: 16px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px;
+  }
+  .panel h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+    margin: 0 0 12px 0;
+  }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 11px; color: var(--muted); }
+  input[type=text], input[type=number], select, textarea {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 7px 9px; font-size: 13px; font-family: inherit;
+  }
+  textarea { width: 100%; resize: vertical; min-height: 54px; }
+  button {
+    background: var(--accent); border: none; color: white; border-radius: 6px;
+    padding: 8px 14px; font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  button.secondary { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); font-weight: 400; }
+  button.danger { background: var(--red); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:hover:not(:disabled) { filter: brightness(1.1); }
+  .muted { color: var(--muted); }
+  .mono { font-family: "SF Mono", Consolas, monospace; }
+  .pill {
+    display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600;
+  }
+  .pill.buy, .pill.long, .pill.bullish, .pill.confirmed { background: rgba(47,191,113,.15); color: var(--green); }
+  .pill.sell, .pill.short, .pill.bearish, .pill.notconfirmed { background: rgba(224,90,90,.15); color: var(--red); }
+  .pill.wait, .pill.none { background: rgba(217,164,65,.15); color: var(--amber); }
+  .pill.api-up { background: rgba(47,191,113,.15); color: var(--green); }
+  .pill.api-down { background: rgba(224,90,90,.15); color: var(--red); }
+  .pill.api-checking { background: rgba(217,164,65,.15); color: var(--amber); }
+  #parsedPreview { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  #status { font-size: 12.5px; margin-top: 10px; }
+  #status.error { color: var(--red); }
+  #status.loading { color: var(--amber); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+  tr:last-child td { border-bottom: none; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .kv { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; border-bottom: 1px dashed var(--border); }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); }
+  details summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+  pre { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 10px; overflow: auto; font-size: 11.5px; max-height: 420px; }
+  .hidden { display: none !important; }
+  .pnl-pos { color: var(--green); } .pnl-neg { color: var(--red); }
+  .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Forex Dynamics — Personal Testing UI</h1>
+  <span class="tag">not part of the model — talks to your API over HTTP only</span>
+  <span class="pill" id="apiStatusPill" style="margin-left:auto;">checking API…</span>
+</header>
+
+<main>
+
+  <!-- Settings ---------------------------------------------------------- -->
+  <section class="panel">
+    <h2>Settings</h2>
+    <div class="row">
+      <div class="field">
+        <label>Trading API base URL</label>
+        <input type="text" id="apiBase" value="http://127.0.0.1:8000" size="26">
+      </div>
+      <div class="field">
+        <label>Symbol</label>
+        <select id="symbol">
+          <option>EUR_USD</option><option>GBP_USD</option><option>USD_JPY</option>
+          <option>AUD_USD</option><option>USD_CAD</option><option>USD_CHF</option>
+          <option>NZD_USD</option><option>XAU_USD</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Timeframe</label>
+        <select id="timeframe">
+          <option>M1</option><option>M5</option><option selected>M15</option>
+          <option>M30</option><option>H1</option><option>H4</option><option>D</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Strategy</label>
+        <select id="strategy"><option value="trend_following">trend_following</option></select>
+      </div>
+    </div>
+  </section>
+
+  <!-- Thesis -------------------------------------------------------------- -->
+  <section class="panel">
+    <h2>Thesis</h2>
+    <textarea id="thesis" placeholder="e.g. there is a bullish trend on EU, confirm if that's accurate and give me an entry on the 15 min timeframe"></textarea>
+    <div class="row" style="margin-top:10px;">
+      <button id="analyzeBtn">Analyze</button>
+      <span class="muted" style="font-size:12px;">Leave blank to just analyze the Symbol/Timeframe/Strategy above.</span>
+    </div>
+    <div id="parsedPreview"></div>
+    <div id="status"></div>
+  </section>
+
+  <!-- Verdict --------------------------------------------------------------- -->
+  <section class="panel hidden" id="verdictPanel">
+    <h2>Model Verdict</h2>
+    <div class="grid2">
+      <div>
+        <div class="kv"><span class="k">Your thesis</span><span id="vThesisBias">—</span></div>
+        <div class="kv"><span class="k">Model market bias</span><span id="vMarketBias">—</span></div>
+        <div class="kv"><span class="k">Confirmation</span><span id="vConfirm">—</span></div>
+        <div class="kv"><span class="k">Recommendation</span><span id="vRecommendation">—</span></div>
+        <div class="kv"><span class="k">Decision confidence</span><span id="vConfidence">—</span></div>
+        <div class="kv"><span class="k">Market regime</span><span id="vRegime">—</span></div>
+        <div class="kv"><span class="k">MSE alignment</span><span id="vMseAlignment">—</span></div>
+      </div>
+      <div>
+        <p style="font-size:13px;margin-top:0;" id="vSummary"></p>
+        <p style="font-size:12.5px;" class="muted" id="vWhy"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trade plan ------------------------------------------------------------ -->
+  <section class="panel hidden" id="tradePlanPanel">
+    <h2>Suggested Entry (Decision Engine trade plan)</h2>
+    <div class="grid2">
+      <div>
+        <div class="kv"><span class="k">Direction</span><span id="tpDirection">—</span></div>
+        <div class="kv"><span class="k">Entry</span><span class="mono" id="tpEntry">—</span></div>
+        <div class="kv"><span class="k">Stop loss</span><span class="mono" id="tpStop">—</span></div>
+        <div class="kv"><span class="k">Take profit 1</span><span class="mono" id="tpTp1">—</span></div>
+      </div>
+      <div>
+        <div class="kv"><span class="k">Take profit 2</span><span class="mono" id="tpTp2">—</span></div>
+        <div class="kv"><span class="k">Risk:Reward</span><span id="tpRR">—</span></div>
+        <div class="kv"><span class="k">Expected pip gain</span><span id="tpPips">—</span></div>
+        <div class="kv"><span class="k">Expected holding time</span><span id="tpHold">—</span></div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <button id="openPlaceFormBtn">Place Position</button>
+      <span class="note" id="noEntryNote"></span>
+    </div>
+
+    <form id="placeForm" class="hidden" style="margin-top:14px; border-top:1px solid var(--border); padding-top:12px;">
+      <div class="row">
+        <div class="field"><label>Direction</label>
+          <select id="pfDirection">
+            <optgroup label="Market (fills now)">
+              <option>BUY</option><option>SELL</option>
+            </optgroup>
+            <optgroup label="Pending (fills when price hits trigger)">
+              <option value="BUY_STOP">BUY_STOP</option>
+              <option value="BUY_LIMIT">BUY_LIMIT</option>
+              <option value="SELL_STOP">SELL_STOP</option>
+              <option value="SELL_LIMIT">SELL_LIMIT</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="field"><label id="pfEntryLabel">Entry</label><input type="number" step="any" id="pfEntry"></div>
+        <div class="field"><label>Stop loss</label><input type="number" step="any" id="pfStop"></div>
+        <div class="field"><label>Take profit</label><input type="number" step="any" id="pfTp"></div>
+        <div class="field"><label>Size (your own unit)</label><input type="number" step="any" id="pfSize" value="1"></div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button type="submit">Confirm Placement</button>
+        <button type="button" class="secondary" id="cancelPlaceBtn">Cancel</button>
+      </div>
+      <p class="note" id="pfPendingNote"></p>
+    </form>
+  </section>
+
+  <!-- Pending orders ----------------------------------------------------------- -->
+  <section class="panel">
+    <h2>Pending Orders</h2>
+    <table id="pendingTable">
+      <thead><tr>
+        <th>Symbol</th><th>TF</th><th>Type</th><th>Trigger</th><th>Current</th>
+        <th>Stop</th><th>Take profit</th><th>Created</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="muted" id="noPendingNote" style="font-size:12.5px;">No pending orders.</p>
+  </section>
+
+  <!-- Positions -------------------------------------------------------------- -->
+  <section class="panel">
+    <h2>Open Positions</h2>
+    <div class="row" style="margin-bottom:10px;">
+      <button class="secondary" id="refreshPricesBtn">Refresh Prices</button>
+      <span class="muted" id="pricesUpdatedAt" style="font-size:12px;"></span>
+    </div>
+    <table id="openTable">
+      <thead><tr>
+        <th>Symbol</th><th>TF</th><th>Dir</th><th>Entry</th><th>Current</th>
+        <th>Unrealized (pips)</th><th>Opened</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="muted" id="noOpenNote" style="font-size:12.5px;">No open positions yet.</p>
+  </section>
+
+  <section class="panel">
+    <h2>History</h2>
+    <table id="historyTable">
+      <thead><tr>
+        <th>Symbol</th><th>TF</th><th>Dir</th><th>Entry</th><th>Exit</th>
+        <th>Realized (pips)</th><th>Closed</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="muted" id="noHistoryNote" style="font-size:12.5px;">No closed positions yet.</p>
+  </section>
+
+  <!-- Raw response ------------------------------------------------------------- -->
+  <section class="panel hidden" id="rawPanel">
+    <details>
+      <summary>Raw /decision/predict response</summary>
+      <pre id="rawJson"></pre>
+    </details>
+  </section>
+
+</main>
+
+<script>
+'use strict';
+
+// ------------------------------------------------------------------------ //
+// Settings persistence
+// ------------------------------------------------------------------------ //
+const $ = (id) => document.getElementById(id);
+const LS_KEY = 'testingui.settings.v1';
+
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    if (s.apiBase) $('apiBase').value = s.apiBase;
+    if (s.symbol) $('symbol').value = s.symbol;
+    if (s.timeframe) $('timeframe').value = s.timeframe;
+    if (s.strategy) $('strategy').value = s.strategy;
+  } catch (e) { /* ignore malformed storage */ }
+}
+function saveSettings() {
+  localStorage.setItem(LS_KEY, JSON.stringify({
+    apiBase: $('apiBase').value.trim(),
+    symbol: $('symbol').value, timeframe: $('timeframe').value, strategy: $('strategy').value,
+  }));
+}
+['apiBase', 'symbol', 'timeframe', 'strategy'].forEach((id) => $(id).addEventListener('change', saveSettings));
+
+function apiBase() { return $('apiBase').value.trim().replace(/\/+$/, ''); }
+const uiBase = () => window.location.origin;
+
+// ------------------------------------------------------------------------ //
+// API status indicator -- pings GET /health so "Failed to fetch" (API not
+// running / wrong port) is visible before you even hit Analyze, instead of
+// only surfacing as a cryptic error after submitting a thesis.
+// ------------------------------------------------------------------------ //
+let apiStatusTimer = null;
+
+async function checkApiStatus() {
+  const pill = $('apiStatusPill');
+  const base = apiBase();
+  if (!base) {
+    pill.textContent = 'no API URL set';
+    pill.className = 'pill api-down';
+    return;
+  }
+  pill.textContent = 'checking API…';
+  pill.className = 'pill api-checking';
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(`${base}/health`, { signal: controller.signal });
+    clearTimeout(timer);
+    if (res.ok) {
+      pill.textContent = `API up (${base})`;
+      pill.className = 'pill api-up';
+    } else {
+      pill.textContent = `API responded with HTTP ${res.status}`;
+      pill.className = 'pill api-down';
+    }
+  } catch (e) {
+    const reason = e.name === 'AbortError' ? 'timed out' : 'not reachable';
+    pill.textContent = `API ${reason} at ${base} — start it with: uvicorn api.main:app --port 8000`;
+    pill.className = 'pill api-down';
+  }
+}
+
+function restartApiStatusPolling() {
+  if (apiStatusTimer) clearInterval(apiStatusTimer);
+  checkApiStatus();
+  apiStatusTimer = setInterval(checkApiStatus, 15000);
+}
+$('apiBase').addEventListener('change', restartApiStatusPolling);
+
+// ------------------------------------------------------------------------ //
+// Thesis parsing -- symbol / timeframe / bias
+// ------------------------------------------------------------------------ //
+const SYMBOL_ALIASES = {
+  'EU': 'EUR_USD', 'EURUSD': 'EUR_USD', 'EUR/USD': 'EUR_USD', 'EUR-USD': 'EUR_USD', 'EUR_USD': 'EUR_USD',
+  'GU': 'GBP_USD', 'GBPUSD': 'GBP_USD', 'GBP/USD': 'GBP_USD', 'GBP_USD': 'GBP_USD', 'CABLE': 'GBP_USD',
+  'UJ': 'USD_JPY', 'USDJPY': 'USD_JPY', 'USD/JPY': 'USD_JPY', 'USD_JPY': 'USD_JPY',
+  'AU': 'AUD_USD', 'AUDUSD': 'AUD_USD', 'AUD/USD': 'AUD_USD', 'AUD_USD': 'AUD_USD', 'AUSSIE': 'AUD_USD',
+  'UC': 'USD_CAD', 'USDCAD': 'USD_CAD', 'USD/CAD': 'USD_CAD', 'USD_CAD': 'USD_CAD', 'LOONIE': 'USD_CAD',
+  'UCHF': 'USD_CHF', 'USDCHF': 'USD_CHF', 'USD/CHF': 'USD_CHF', 'USD_CHF': 'USD_CHF', 'SWISSY': 'USD_CHF',
+  'NU': 'NZD_USD', 'NZDUSD': 'NZD_USD', 'NZD/USD': 'NZD_USD', 'NZD_USD': 'NZD_USD', 'KIWI': 'NZD_USD',
+  'XAUUSD': 'XAU_USD', 'XAU/USD': 'XAU_USD', 'XAU_USD': 'XAU_USD', 'GOLD': 'XAU_USD',
+};
+// Word-based ("15 min", "1 hour") and compact ("15m", "1h") forms both
+// recognized; checked in ascending-granularity order so e.g. "15 min" can
+// never be mis-caught by the M1 pattern (a bare digit inside "15" has no
+// word boundary before it, so `\b1\b`-style patterns cannot match mid-token).
+const TIMEFRAME_ALIASES = [
+  [/\b(1|one)\s*-?\s*min(ute)?s?\b|\bm1\b|\b1\s*m\b/i, 'M1'],
+  [/\b(5|five)\s*-?\s*min(ute)?s?\b|\bm5\b|\b5\s*m\b/i, 'M5'],
+  [/\b(15|fifteen)\s*-?\s*min(ute)?s?\b|\bm15\b|\b15\s*m\b/i, 'M15'],
+  [/\b(30|thirty)\s*-?\s*min(ute)?s?\b|\bm30\b|\b30\s*m\b/i, 'M30'],
+  [/\b(1|one)\s*-?\s*hour\b|\bh1\b|\b60\s*-?\s*min(ute)?s?\b|\b1\s*h\b/i, 'H1'],
+  [/\b(4|four)\s*-?\s*hour\b|\bh4\b|\b4\s*h\b/i, 'H4'],
+  [/\bdaily\b|\bday\b|\bd1\b/i, 'D'],
+];
+const BULLISH_WORDS = /\b(bullish|uptrend|up-trend|up trend|long|higher|rally|buy(ing)?)\b/i;
+const BEARISH_WORDS = /\b(bearish|downtrend|down-trend|down trend|short|lower|sell(ing)?|drop)\b/i;
+
+function parseThesis(text, fallback) {
+  const result = { symbol: fallback.symbol, timeframe: fallback.timeframe, bias: null, matchedSymbol: false, matchedTimeframe: false };
+  if (!text || !text.trim()) return result;
+
+  const upper = text.toUpperCase();
+  for (const key of Object.keys(SYMBOL_ALIASES)) {
+    const re = new RegExp('\\b' + key.replace('/', '\\/') + '\\b');
+    if (re.test(upper)) { result.symbol = SYMBOL_ALIASES[key]; result.matchedSymbol = true; break; }
+  }
+  if (!result.matchedSymbol) {
+    // Separator required (not optional): an *unseparated* 6-letter match
+    // would false-positive on ordinary English words (e.g. "THESIS" ==
+    // "THE"+"SIS") -- unseparated 6-letter pairs like "EURUSD" are already
+    // covered by the alias table above.
+    const m = upper.match(/\b([A-Z]{3})[\/\-]([A-Z]{3})\b/);
+    if (m && m[1] !== m[2]) { result.symbol = `${m[1]}_${m[2]}`; result.matchedSymbol = true; }
+  }
+
+  for (const [re, tf] of TIMEFRAME_ALIASES) {
+    if (re.test(text)) { result.timeframe = tf; result.matchedTimeframe = true; break; }
+  }
+
+  if (BULLISH_WORDS.test(text)) result.bias = 'BULLISH';
+  else if (BEARISH_WORDS.test(text)) result.bias = 'BEARISH';
+
+  return result;
+}
+
+// ------------------------------------------------------------------------ //
+// Strategy list
+// ------------------------------------------------------------------------ //
+async function loadStrategies() {
+  try {
+    const res = await fetch(`${apiBase()}/strategy/list`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const sel = $('strategy');
+    const current = sel.value;
+    sel.innerHTML = '';
+    (data.strategies || []).forEach((name) => {
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      sel.appendChild(opt);
+    });
+    if ([...sel.options].some((o) => o.value === current)) sel.value = current;
+  } catch (e) { /* API not up yet -- keep the default option */ }
+}
+
+// ------------------------------------------------------------------------ //
+// Analyze
+// ------------------------------------------------------------------------ //
+let lastDecision = null;
+let lastThesisText = '';
+
+function setStatus(msg, cls) {
+  const el = $('status');
+  el.textContent = msg || '';
+  el.className = cls || '';
+}
+
+function pill(text, cls) { return `<span class="pill ${cls}">${text}</span>`; }
+function pendingPillClass(direction) {
+  const d = (direction || '').toUpperCase();
+  if (d.startsWith('BUY')) return 'buy';
+  if (d.startsWith('SELL')) return 'sell';
+  return 'wait';
+}
+
+async function analyze() {
+  const thesisText = $('thesis').value;
+  lastThesisText = thesisText;
+  const fallback = { symbol: $('symbol').value, timeframe: $('timeframe').value };
+  const parsed = parseThesis(thesisText, fallback);
+
+  $('symbol').value = parsed.symbol;
+  $('timeframe').value = parsed.timeframe;
+  saveSettings();
+
+  const previewParts = [`Detected: <b>${parsed.symbol}</b>, <b>${parsed.timeframe}</b>`];
+  if (parsed.bias) previewParts.push(`your thesis: ${pill(parsed.bias, parsed.bias.toLowerCase())}`);
+  else previewParts.push('no directional thesis detected in the text (that\'s fine -- will just analyze)');
+  $('parsedPreview').innerHTML = previewParts.join(' &nbsp;·&nbsp; ');
+
+  $('analyzeBtn').disabled = true;
+  setStatus('Requesting analysis... first call for a new symbol/timeframe trains both models and can take up to ~30s.', 'loading');
+  $('verdictPanel').classList.add('hidden');
+  $('tradePlanPanel').classList.add('hidden');
+  $('rawPanel').classList.add('hidden');
+
+  try {
+    const res = await fetch(`${apiBase()}/decision/predict`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: parsed.symbol, timeframe: parsed.timeframe, strategy_name: $('strategy').value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    lastDecision = data;
+    renderVerdict(data, parsed.bias);
+    renderTradePlan(data);
+    $('rawJson').textContent = JSON.stringify(data, null, 2);
+    $('rawPanel').classList.remove('hidden');
+    setStatus('Done.', '');
+  } catch (e) {
+    if (e instanceof TypeError) {
+      // fetch() throws a generic TypeError for network-level failures (API down,
+      // wrong port, CORS block) -- it never reaches the server, so there's no
+      // HTTP status to report. Point at the fix directly instead of the raw message.
+      setStatus(
+        `Could not reach the trading API at ${apiBase()}. It's not running or not reachable ` +
+        `-- start it with: uvicorn api.main:app --port 8000`, 'error',
+      );
+    } else {
+      setStatus(`Request failed: ${e.message}`, 'error');
+    }
+    checkApiStatus();
+  } finally {
+    $('analyzeBtn').disabled = false;
+  }
+}
+
+function renderVerdict(data, thesisBias) {
+  const ma = data.market_analysis || {};
+  const marketBias = ma.market_bias || 'UNKNOWN';
+
+  $('vThesisBias').innerHTML = thesisBias ? pill(thesisBias, thesisBias.toLowerCase()) : '<span class="muted">not stated</span>';
+  $('vMarketBias').innerHTML = pill(marketBias, marketBias.toLowerCase());
+
+  if (!thesisBias) {
+    $('vConfirm').innerHTML = '<span class="muted">n/a — no thesis stated</span>';
+  } else if (thesisBias === marketBias) {
+    $('vConfirm').innerHTML = pill('CONFIRMED', 'confirmed');
+  } else {
+    $('vConfirm').innerHTML = pill(`NOT CONFIRMED (model reads ${marketBias})`, 'notconfirmed');
+  }
+
+  const rec = data.recommendation || 'WAIT';
+  $('vRecommendation').innerHTML = pill(rec, rec.toLowerCase());
+  const conf = (data.strategy_verdict && data.strategy_verdict.overall_strategy_quality) ?? (data.strategy && data.strategy.decision_confidence);
+  $('vConfidence').textContent = conf != null ? `${conf}%` : '—';
+  $('vRegime').textContent = ma.market_regime ? `${ma.market_regime} (${ma.current_trend || '—'})` : '—';
+
+  const mseAlignment = data.strategy && data.strategy.mse_alignment;
+  if (mseAlignment == null) {
+    $('vMseAlignment').innerHTML = '<span class="muted">—</span>';
+  } else {
+    const confirmed = mseAlignment >= 70;
+    $('vMseAlignment').innerHTML = pill(
+      `${mseAlignment}% ${confirmed ? '(confirmed)' : '(not confirmed, needs 70%)'}`,
+      confirmed ? 'confirmed' : 'notconfirmed',
+    );
+  }
+
+  const reasoning = data.reasoning || {};
+  $('vSummary').textContent = reasoning.summary || '';
+  const why = rec === 'BUY' ? reasoning.why_buy : rec === 'SELL' ? reasoning.why_sell : reasoning.why_wait;
+  $('vWhy').textContent = why || '';
+
+  $('verdictPanel').classList.remove('hidden');
+}
+
+function renderTradePlan(data) {
+  const tp = data.trade_plan || {};
+  const direction = tp.direction || 'NONE';
+  $('tpDirection').innerHTML = pill(direction, direction.toLowerCase());
+  $('tpEntry').textContent = tp.entry_price ?? '—';
+  $('tpStop').textContent = tp.stop_loss ?? '—';
+  $('tpTp1').textContent = tp.take_profit_1 ?? '—';
+  $('tpTp2').textContent = tp.take_profit_2 ?? '—';
+  $('tpRR').textContent = tp.risk_reward_ratio ?? '—';
+  $('tpPips').textContent = tp.expected_pip_gain != null ? `${tp.expected_pip_gain} pips` : '—';
+  $('tpHold').textContent = tp.expected_holding_time ?? '—';
+
+  const canPlace = direction === 'LONG' || direction === 'SHORT' || direction === 'BUY' || direction === 'SELL';
+  $('openPlaceFormBtn').disabled = !canPlace;
+  $('noEntryNote').textContent = canPlace ? '' : 'No directional entry suggested for this call (direction: NONE) -- nothing to place.';
+
+  if (canPlace) {
+    const dirNorm = (direction === 'LONG') ? 'BUY' : (direction === 'SHORT') ? 'SELL' : direction;
+    $('pfDirection').value = dirNorm;
+    $('pfEntry').value = tp.entry_price ?? '';
+    $('pfStop').value = tp.stop_loss ?? '';
+    $('pfTp').value = tp.take_profit_1 ?? '';
+    updatePfDirectionLabel();
+  }
+  $('placeForm').classList.add('hidden');
+  $('tradePlanPanel').classList.remove('hidden');
+}
+
+$('analyzeBtn').addEventListener('click', analyze);
+$('openPlaceFormBtn').addEventListener('click', () => $('placeForm').classList.remove('hidden'));
+$('cancelPlaceBtn').addEventListener('click', () => $('placeForm').classList.add('hidden'));
+
+const PENDING_TYPES = new Set(['BUY_STOP', 'BUY_LIMIT', 'SELL_STOP', 'SELL_LIMIT']);
+
+function updatePfDirectionLabel() {
+  const isPending = PENDING_TYPES.has($('pfDirection').value);
+  $('pfEntryLabel').textContent = isPending ? 'Trigger price' : 'Entry';
+  $('pfPendingNote').textContent = isPending
+    ? 'Saved as a pending order -- fills automatically into an open position once Refresh Prices sees the trigger hit.'
+    : '';
+}
+$('pfDirection').addEventListener('change', updatePfDirectionLabel);
+
+// ------------------------------------------------------------------------ //
+// Positions (backed by testing_ui/server.py -> positions.json)
+// ------------------------------------------------------------------------ //
+function pipSize(symbol) { return symbol.toUpperCase().endsWith('_JPY') ? 0.01 : 0.0001; }
+
+async function fetchPositions() {
+  const res = await fetch(`${uiBase()}/api/positions`);
+  return res.json();
+}
+
+async function renderPositions(preloadedData) {
+  const data = preloadedData || await fetchPositions();
+
+  const pendingBody = document.querySelector('#pendingTable tbody');
+  pendingBody.innerHTML = '';
+  $('noPendingNote').classList.toggle('hidden', (data.pending || []).length > 0);
+  (data.pending || []).forEach((o) => {
+    const tr = document.createElement('tr');
+    tr.dataset.id = o.id;
+    tr.dataset.symbol = o.symbol;
+    tr.innerHTML = `
+      <td>${o.symbol}</td><td>${o.timeframe}</td><td>${pill(o.direction, pendingPillClass(o.direction))}</td>
+      <td class="mono">${o.trigger_price}</td>
+      <td class="mono current-price">—</td>
+      <td class="mono">${o.stop_loss ?? '—'}</td>
+      <td class="mono">${o.take_profit ?? '—'}</td>
+      <td class="muted" style="font-size:11.5px;">${(o.created_at || '').replace('T', ' ').replace('+00:00', ' UTC')}</td>
+      <td><button class="secondary danger cancel-pending-btn" data-id="${o.id}">Cancel</button></td>`;
+    pendingBody.appendChild(tr);
+  });
+  document.querySelectorAll('.cancel-pending-btn').forEach((btn) => btn.addEventListener('click', () => cancelPending(btn.dataset.id)));
+
+  const openBody = document.querySelector('#openTable tbody');
+  openBody.innerHTML = '';
+  $('noOpenNote').classList.toggle('hidden', (data.open || []).length > 0);
+  (data.open || []).forEach((p) => {
+    const tr = document.createElement('tr');
+    tr.dataset.id = p.id;
+    tr.dataset.symbol = p.symbol;
+    tr.innerHTML = `
+      <td>${p.symbol}</td><td>${p.timeframe}</td><td>${pill(p.direction, p.direction.toLowerCase())}</td>
+      <td class="mono">${p.entry_price}</td>
+      <td class="mono current-price">—</td>
+      <td class="mono unrealized">—</td>
+      <td class="muted" style="font-size:11.5px;">${(p.opened_at || '').replace('T', ' ').replace('+00:00', ' UTC')}</td>
+      <td><button class="secondary close-btn" data-id="${p.id}">Close</button>
+          <button class="secondary danger delete-btn" data-id="${p.id}">✕</button></td>`;
+    openBody.appendChild(tr);
+  });
+
+  const historyBody = document.querySelector('#historyTable tbody');
+  historyBody.innerHTML = '';
+  $('noHistoryNote').classList.toggle('hidden', (data.history || []).length > 0);
+  (data.history || []).slice().reverse().forEach((p) => {
+    const tr = document.createElement('tr');
+    const pnlClass = p.realized_pips > 0 ? 'pnl-pos' : p.realized_pips < 0 ? 'pnl-neg' : '';
+    tr.innerHTML = `
+      <td>${p.symbol}</td><td>${p.timeframe}</td><td>${pill(p.direction, p.direction.toLowerCase())}</td>
+      <td class="mono">${p.entry_price}</td><td class="mono">${p.exit_price}</td>
+      <td class="mono ${pnlClass}">${p.realized_pips > 0 ? '+' : ''}${p.realized_pips}</td>
+      <td class="muted" style="font-size:11.5px;">${(p.closed_at || '').replace('T', ' ').replace('+00:00', ' UTC')}</td>`;
+    historyBody.appendChild(tr);
+  });
+
+  document.querySelectorAll('.close-btn').forEach((btn) => btn.addEventListener('click', () => closePosition(btn.dataset.id)));
+  document.querySelectorAll('.delete-btn').forEach((btn) => btn.addEventListener('click', () => deletePosition(btn.dataset.id)));
+}
+
+$('placeForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const direction = $('pfDirection').value;
+  const isPending = PENDING_TYPES.has(direction);
+  const payload = {
+    symbol: $('symbol').value, timeframe: $('timeframe').value, direction,
+    stop_loss: $('pfStop').value ? parseFloat($('pfStop').value) : null,
+    take_profit: $('pfTp').value ? parseFloat($('pfTp').value) : null,
+    size: $('pfSize').value ? parseFloat($('pfSize').value) : null,
+    thesis: lastThesisText, model_recommendation: lastDecision ? lastDecision.recommendation : null,
+  };
+  let res;
+  if (isPending) {
+    payload.trigger_price = parseFloat($('pfEntry').value);
+    res = await fetch(`${uiBase()}/api/pending`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+  } else {
+    payload.entry_price = parseFloat($('pfEntry').value);
+    res = await fetch(`${uiBase()}/api/positions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+  }
+  if (res.ok) { $('placeForm').classList.add('hidden'); await renderPositions(); }
+  else { const err = await res.json(); alert(`Could not place order: ${err.error || res.status}`); }
+});
+
+async function cancelPending(id) {
+  if (!confirm('Cancel this pending order?')) return;
+  const res = await fetch(`${uiBase()}/api/pending/${id}`, { method: 'DELETE' });
+  if (res.ok) await renderPositions();
+}
+
+async function closePosition(id) {
+  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  const currentPriceText = tr ? tr.querySelector('.current-price').textContent : '—';
+  const defaultExit = currentPriceText !== '—' ? currentPriceText : '';
+  const exitPrice = prompt('Exit price:', defaultExit);
+  if (exitPrice === null || exitPrice === '') return;
+  const res = await fetch(`${uiBase()}/api/positions/${id}/close`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ exit_price: parseFloat(exitPrice) }),
+  });
+  if (res.ok) await renderPositions();
+  else { const err = await res.json(); alert(`Could not close position: ${err.error || res.status}`); }
+}
+
+async function deletePosition(id) {
+  if (!confirm('Remove this open position without recording a close?')) return;
+  const res = await fetch(`${uiBase()}/api/positions/${id}`, { method: 'DELETE' });
+  if (res.ok) await renderPositions();
+}
+
+async function checkPendingTriggers(pendingOrders, priceBySymbol) {
+  for (const order of pendingOrders) {
+    const current = priceBySymbol[order.symbol];
+    if (current == null) continue;
+    const trigger = parseFloat(order.trigger_price);
+    let hit = false;
+    if (order.direction === 'BUY_STOP') hit = current >= trigger;
+    else if (order.direction === 'SELL_STOP') hit = current <= trigger;
+    else if (order.direction === 'BUY_LIMIT') hit = current <= trigger;
+    else if (order.direction === 'SELL_LIMIT') hit = current >= trigger;
+    if (!hit) continue;
+    await fetch(`${uiBase()}/api/pending/${order.id}/trigger`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fill_price: current }),
+    });
+  }
+}
+
+async function refreshPrices() {
+  let data = await fetchPositions();
+  const uniqueSymbols = [...new Set([
+    ...(data.open || []).map((p) => p.symbol),
+    ...(data.pending || []).map((o) => o.symbol),
+  ])];
+  const priceBySymbol = {};
+
+  for (const symbol of uniqueSymbols) {
+    try {
+      const res = await fetch(`${apiBase()}/market/analyze?symbol=${symbol}&timeframe=${$('timeframe').value}`);
+      if (!res.ok) continue;
+      const json = await res.json();
+      priceBySymbol[symbol] = json.pa_current_close;
+    } catch (e) { /* leave this symbol's price as unknown */ }
+  }
+
+  await checkPendingTriggers(data.pending || [], priceBySymbol);
+  data = await fetchPositions(); // pick up any pending order that just filled into an open position
+  await renderPositions(data);
+
+  document.querySelectorAll('#openTable tbody tr').forEach((tr) => {
+    const position = (data.open || []).find((p) => p.id === tr.dataset.id);
+    const current = priceBySymbol[tr.dataset.symbol];
+    if (!position || current == null) return;
+    tr.querySelector('.current-price').textContent = current;
+    const pip = pipSize(position.symbol);
+    let diff = current - position.entry_price;
+    if (position.direction.toUpperCase() === 'SELL') diff = -diff;
+    const pips = Math.round((diff / pip) * 10) / 10;
+    const cell = tr.querySelector('.unrealized');
+    cell.textContent = `${pips > 0 ? '+' : ''}${pips}`;
+    cell.className = `mono unrealized ${pips > 0 ? 'pnl-pos' : pips < 0 ? 'pnl-neg' : ''}`;
+  });
+
+  document.querySelectorAll('#pendingTable tbody tr').forEach((tr) => {
+    const current = priceBySymbol[tr.dataset.symbol];
+    if (current != null) tr.querySelector('.current-price').textContent = current;
+  });
+
+  $('pricesUpdatedAt').textContent = `updated ${new Date().toLocaleTimeString()}`;
+}
+$('refreshPricesBtn').addEventListener('click', refreshPrices);
+
+// ------------------------------------------------------------------------ //
+// Boot
+// ------------------------------------------------------------------------ //
+loadSettings();
+restartApiStatusPolling();
+loadStrategies();
+renderPositions();
+</script>
+</body>
+</html>

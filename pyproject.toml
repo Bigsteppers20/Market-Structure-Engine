@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market-structure-engine"
+version = "1.0.0"
+description = "Transforms raw OHLCV forex data into numerical market-structure features for ML models. Features only - never trade signals."
+readme = "docs/README.md"
+requires-python = ">=3.11"
+dependencies = ["pandas>=2.0", "numpy>=1.24", "scipy>=1.10"]
+
+[project.optional-dependencies]
+viz = ["matplotlib>=3.7"]
+dev = ["pytest>=7.4", "pytest-cov>=4.1"]
+ml = ["scikit-learn>=1.3", "pyarrow>=14.0", "joblib>=1.3", "requests>=2.30", "python-dotenv>=1.0"]
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+
+[tool.setuptools]
+packages = [
+    "market_structure", "ml_pipeline", "training", "strategy", "strategies",
+    "linear_regression", "logistic_regression", "model_monitor", "decision_engine", "api",
+]

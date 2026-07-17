@@ -1,0 +1,44 @@
+# Secrets -- never commit real credentials
+.env
+*.env
+market_structure/.env
+
+# Virtual environment
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+*.log
+
+# Generated analysis / training / report output -- regenerable, not source
+_lr_smoke_output/
+analysis_output/
+dataset_output/
+decision_output/
+lgr_output/
+lr_output/
+monitor_output/
+outputs/
+
+# Model artifacts (trained models, scalers, datasets) -- regenerable via training scripts
+*.joblib
+*.pkl
+
+# Personal testing UI data -- not part of the product
+testing_ui/positions.json
+
+# Editor/IDE
+.vscode/
+.claude/
+
+# Vestigial nested copy of an older standalone version of this project --
+# not referenced by the root pyproject.toml's package list and shadows
+# `import market_structure_engine` as an accidental namespace package.
+# Excluded from version control rather than deleted; remove this line if
+# you actually want it tracked.
+market_structure_engine/
+market_structure_engine.egg-info/
