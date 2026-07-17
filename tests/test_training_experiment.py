@@ -18,6 +18,10 @@ def test_new_record_populates_every_required_field(tmp_path) -> None:
         hyperparameters={"alpha": 0.1}, training_metrics={"mae": 0.1},
         validation_metrics={"mae": 0.12}, testing_metrics={"mae": 0.13},
         training_duration_seconds=2.5, artifact_dir=tmp_path / "artifacts" / "exp1",
+        # tmp_path is deliberately outside any git repo (unlike the cwd this
+        # suite runs from, which get_git_commit(None) would otherwise fall
+        # back to) -- pass it explicitly so this assertion is deterministic.
+        repo_dir=tmp_path,
     )
     assert record.experiment_id.startswith("exp_")
     assert record.feature_version == "1.2.0"
