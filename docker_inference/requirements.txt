@@ -1,0 +1,21 @@
+fastapi==0.139.0
+uvicorn==0.51.0
+pydantic==2.13.4
+pandas>=2.0
+numpy>=1.24
+scipy>=1.10
+
+# The actual model -- installs the `market_structure` package (and its
+# siblings, incl. `logistic_regression`) from the upstream repo. The [ml]
+# extra additionally pulls in scikit-learn, required to unpickle
+# HF_REPO_ID's model.joblib (a logistic_regression.classification_model.
+# ClassificationModel, which internally holds a sklearn LogisticRegression
+# estimator -- joblib.load() fails with ModuleNotFoundError without it).
+# Pin a commit/tag once one exists; @main tracks the default branch in the
+# meantime. Only imported/loaded when USE_MOCK_MODEL != "1" (see
+# inference.py).
+market-structure-engine[ml] @ git+https://github.com/Bigsteppers20/Market-Structure-Engine.git@main
+
+# Downloads the private HF_REPO_ID artifact bundle at startup (see
+# inference.py). Only imported when USE_MOCK_MODEL != "1".
+huggingface_hub==1.24.0
