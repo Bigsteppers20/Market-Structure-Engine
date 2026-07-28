@@ -23,7 +23,6 @@ from .fvg import FvgState
 from .indicators import IndicatorPanel
 from .liquidity import LiquidityState
 from .order_blocks import OrderBlockState
-from .spread import SpreadFeatures
 from .support_resistance import ZoneSummary
 from .swings import SwingPoint
 from .trend import TrendState
@@ -41,6 +40,7 @@ class PriceActionFeatures:
     previous_close: float = 0.0
     price_change: float = 0.0
     price_return: float = 0.0
+    percentage_return: float = 0.0
     body_size: float = 0.0
     upper_wick: float = 0.0
     lower_wick: float = 0.0
@@ -57,23 +57,16 @@ class PriceActionFeatures:
 
 @dataclass(slots=True)
 class VolatilityFeatures:
-    """Volatility regime description.
+    """Volatility regime description."""
 
-    Note
-    ----
-    ``atr``, ``true_range`` and ``rolling_volatility`` were removed as exact
-    duplicates of ``ind_atr``, ``ind_true_range`` and ``ind_volatility``
-    (same underlying :class:`IndicatorPanel` snapshot values) -- see
-    FEATURE_OPTIMIZATION_REPORT.md, Task 1.
-    """
-
+    rolling_volatility: float = 0.0
+    atr: float = 0.0
+    true_range: float = 0.0
     historical_volatility: float = 0.0
     average_candle_size: float = 0.0
     average_wick_size: float = 0.0
     expansion: float = 0.0
     compression: float = 0.0
-    valid: float = 0.0
-    """1.0 once >= hist_vol_window candles are loaded; 0.0 = placeholder."""
 
 
 @dataclass(slots=True)
@@ -89,25 +82,17 @@ class MicrostructureFeatures:
     swing_acceleration: float = 0.0
     time_between_swings: float = 0.0
     average_swing_length: float = 0.0
-    valid: float = 0.0
-    """1.0 once >= 3 swings are available to derive leg geometry; 0.0 = placeholder."""
 
 
 @dataclass(slots=True)
 class SessionFeatures:
-    """Trading-session and calendar encodings (UTC-based).
-
-    Note
-    ----
-    ``session_overlap`` was removed: it was an exact deterministic function
-    of the 4 ``is_*`` flags (>= 2 active), carrying no information beyond
-    them -- see FEATURE_OPTIMIZATION_REPORT.md, Task 2.
-    """
+    """Trading-session and calendar encodings (UTC-based)."""
 
     is_sydney: float = 0.0
     is_asian: float = 0.0
     is_london: float = 0.0
     is_newyork: float = 0.0
+    session_overlap: float = 0.0
     hour: float = 0.0
     minute: float = 0.0
     day_of_week: float = 0.0
@@ -150,10 +135,10 @@ class MarketState:
     liquidity: LiquidityState | None = None
     fvg: FvgState | None = None
     order_blocks: OrderBlockState | None = None
-    spread: SpreadFeatures = field(default_factory=SpreadFeatures)
     indicators: Dict[str, float] = field(default_factory=dict)
-    indicator_validity: Dict[str, float] = field(default_factory=dict)
     patterns: Dict[str, float] = field(default_factory=dict)
+    pattern_bullish_score: float = 0.0
+    pattern_bearish_score: float = 0.0
     swings: List[SwingPoint] = field(default_factory=list)
     breaks: List[StructureBreak] = field(default_factory=list)
     chochs: List[ChochEvent] = field(default_factory=list)
@@ -173,7 +158,6 @@ class MarketState:
                 trend_strength=t.strength,
                 trend_duration_bars=float(t.duration_bars),
                 trend_momentum=t.momentum,
-                trend_valid=float(t.valid),
             )
         for group, prefix in (
             (self.structure, "structure"),
@@ -181,7 +165,6 @@ class MarketState:
             (self.volatility, "vol"),
             (self.microstructure, "micro"),
             (self.session, "session"),
-            (self.spread, "spread"),
         ):
             for f in fields(group):
                 out[f"{prefix}_{f.name}"] = scalar(getattr(group, f.name))
@@ -203,8 +186,6 @@ class MarketState:
                     z.nearest_resistance.width if z.nearest_resistance else 0.0),
                 sr_distance_to_support=z.distance_to_support,
                 sr_distance_to_resistance=z.distance_to_resistance,
-                sr_support_valid=1.0 if z.nearest_support else 0.0,
-                sr_resistance_valid=1.0 if z.nearest_resistance else 0.0,
             )
         if self.liquidity is not None:
             lq = self.liquidity
@@ -252,9 +233,10 @@ class MarketState:
             )
         for name in sorted(self.indicators):
             out[f"ind_{name}"] = scalar(self.indicators[name])
-            out[f"ind_{name}_valid"] = scalar(self.indicator_validity.get(name, 0.0))
         for name in sorted(self.patterns):
             out[f"pat_{name}"] = scalar(self.patterns[name])
+        out["pat_bullish_score"] = self.pattern_bullish_score
+        out["pat_bearish_score"] = self.pattern_bearish_score
         return out
 
     def to_vector(self) -> Tuple[np.ndarray, List[str]]:
@@ -285,6 +267,7 @@ def build_price_action(df: pd.DataFrame, panel: IndicatorPanel) -> PriceActionFe
         previous_close=prev_c,
         price_change=c - prev_c,
         price_return=(c - prev_c) / prev_c if prev_c else 0.0,
+        percentage_return=((c - prev_c) / prev_c * 100.0) if prev_c else 0.0,
         body_size=body,
         upper_wick=h - max(o, c),
         lower_wick=min(o, c) - lo,
@@ -318,12 +301,14 @@ def build_volatility(
     ratio = atr_now / atr_mean if atr_mean else 1.0
     wick = (h - np.maximum(o, c)) + (np.minimum(o, c) - lo)
     return VolatilityFeatures(
+        rolling_volatility=panel.snapshot.get("volatility", 0.0),
+        atr=atr_now,
+        true_range=panel.snapshot.get("true_range", 0.0),
         historical_volatility=hist_vol,
         average_candle_size=float((h - lo)[-w:].mean()),
         average_wick_size=float(wick[-w:].mean()),
         expansion=float(ratio >= config.expansion_ratio),
         compression=float(ratio <= config.compression_ratio),
-        valid=float(len(df) >= w),
     )
 
 
@@ -360,7 +345,6 @@ def build_microstructure(
         swing_acceleration=velocity - prev_velocity,
         time_between_swings=float(times[-3:].mean()),
         average_swing_length=float(abs_legs.mean()),
-        valid=1.0,
     )
 
 
@@ -379,11 +363,13 @@ def build_session(df: pd.DataFrame, config: EngineConfig) -> SessionFeatures:
     asian = in_session(config.session_asian)
     london = in_session(config.session_london)
     ny = in_session(config.session_newyork)
+    overlap = float(sum((sydney, asian, london, ny)) >= 2)
     return SessionFeatures(
         is_sydney=float(sydney),
         is_asian=float(asian),
         is_london=float(london),
         is_newyork=float(ny),
+        session_overlap=overlap,
         hour=float(hour),
         minute=float(ts.minute),
         day_of_week=float(ts.dayofweek),

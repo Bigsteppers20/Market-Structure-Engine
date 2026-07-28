@@ -23,7 +23,6 @@ from .fvg import FairValueGap, FvgEngine, FvgState
 from .indicators import IndicatorEngine, IndicatorPanel
 from .liquidity import LiquidityEngine, LiquidityPool, LiquiditySweep, LiquidityState
 from .order_blocks import OrderBlock, OrderBlockEngine, OrderBlockState
-from .spread import SpreadEngine, SpreadFeatures
 from .support_resistance import SupportResistanceEngine, Zone, ZoneSummary
 from .swings import SwingDetector, SwingPoint
 from .trend import TrendDirection, TrendEngine, TrendState
@@ -62,8 +61,6 @@ __all__ = [
     "OrderBlockEngine",
     "OrderBlock",
     "OrderBlockState",
-    "SpreadEngine",
-    "SpreadFeatures",
     "IndicatorEngine",
     "IndicatorPanel",
     "CandlePatternEngine",

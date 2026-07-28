@@ -92,9 +92,7 @@ def test_session_features() -> None:
     feats = build_session(df, EngineConfig())
     assert feats.is_london == 1.0
     assert feats.is_newyork == 1.0
-    # session_overlap was removed (Task 2: exact function of the 4 is_*
-    # flags, >= 2 active) -- verify the underlying condition directly.
-    assert (feats.is_sydney + feats.is_asian + feats.is_london + feats.is_newyork) >= 2.0
+    assert feats.session_overlap == 1.0
     assert feats.hour == 14.0
     assert feats.day_of_week == 0.0  # Monday
 

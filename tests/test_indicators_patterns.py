@@ -35,51 +35,31 @@ def test_indicator_panel_complete(random_df: pd.DataFrame) -> None:
     panel = IndicatorEngine(EngineConfig()).analyze(random_df)
     required = {
         "ema_20", "ema_50", "ema_100", "ema_200", "sma", "atr", "rsi",
-        "macd", "macd_signal", "adx", "momentum", "roc",
-        "cci", "stoch_k", "stoch_d", "williams_r", "bb_upper",
-        "bb_lower", "std_dev", "volatility", "rolling_median",
-        "vwap", "true_range",
+        "macd", "macd_signal", "macd_histogram", "adx", "momentum", "roc",
+        "cci", "stoch_k", "stoch_d", "williams_r", "bb_upper", "bb_middle",
+        "bb_lower", "std_dev", "volatility", "rolling_mean", "rolling_median",
+        "rolling_variance", "vwap", "true_range",
         "volume_ma", "relative_volume", "volume_spike", "volume_trend",
         "volume_delta", "volume_ratio", "tick_volume",
     }
-    # macd_histogram, rolling_mean, rolling_variance and bb_middle were
-    # removed as exact duplicates/linear combinations of features already
-    # present (see FEATURE_OPTIMIZATION_REPORT.md, Tasks 1-2).
     assert required <= set(panel.series)
-    assert not ({"macd_histogram", "rolling_mean", "rolling_variance", "bb_middle"} & set(panel.series))
     n = len(random_df)
     for name, arr in panel.series.items():
         assert len(arr) == n, name
         assert np.isfinite(panel.snapshot[name]), name
-    # Every indicator carries a validity flag (Task 3: no silent 0.0 for
-    # "not enough history yet").
-    assert required <= set(panel.valid)
-    for name in required:
-        assert panel.valid[name] in (0.0, 1.0), name
 
 
 def test_indicator_relationships(random_df: pd.DataFrame) -> None:
     panel = IndicatorEngine(EngineConfig()).analyze(random_df)
     s = panel.series
-    # bb_middle is no longer stored, but bb_upper/bb_lower must still bracket
-    # the (removed) middle band symmetrically around it.
-    mid = (s["bb_upper"] + s["bb_lower"]) / 2.0
-    np.testing.assert_allclose(mid, s["sma"], atol=1e-9)
-    assert (s["bb_upper"] >= mid).all()
-    assert (mid >= s["bb_lower"]).all()
+    hist = s["macd"] - s["macd_signal"]
+    np.testing.assert_allclose(s["macd_histogram"], hist, atol=1e-12)
+    assert (s["bb_upper"] >= s["bb_middle"]).all()
+    assert (s["bb_middle"] >= s["bb_lower"]).all()
     valid = np.isfinite(s["stoch_k"])
     assert (s["stoch_k"][valid] >= 0).all() and (s["stoch_k"][valid] <= 100).all()
     wr = s["williams_r"][np.isfinite(s["williams_r"])]
     assert (wr <= 0).all() and (wr >= -100).all()
-
-
-def test_indicator_validity_warms_up() -> None:
-    """A short series should mark long-period indicators invalid, not 0.0-as-real."""
-    df = make_ohlcv(30)
-    panel = IndicatorEngine(EngineConfig()).analyze(df)
-    assert panel.valid["ema_200"] == 0.0
-    assert panel.valid["ema_20"] == 1.0
-    assert panel.valid["tick_volume"] == 0.0  # no tick_volume column supplied
 
 
 def test_volume_spike_flag() -> None:
@@ -116,8 +96,7 @@ def test_engulfing_patterns() -> None:
     ])
     panel = CandlePatternEngine().analyze(df)
     assert panel.snapshot["bullish_engulfing"] == 1.0
-    # No composite bullish_score anymore (Task 2: redundant with the
-    # individual flags it summed) -- verify the flag directly instead.
+    assert panel.bullish_score >= 1.0
 
 
 def test_inside_outside_bar() -> None:
@@ -147,16 +126,10 @@ def test_all_patterns_present(random_df: pd.DataFrame) -> None:
     expected = {
         "hammer", "inverted_hammer", "shooting_star", "doji", "dragonfly_doji",
         "gravestone_doji", "bullish_engulfing", "bearish_engulfing",
-        "bullish_harami", "bearish_harami",
-        "morning_star", "evening_star", "piercing_line",
+        "morning_star", "evening_star", "harami", "piercing_line",
         "dark_cloud_cover", "three_white_soldiers", "three_black_crows",
-        "inside_bar", "outside_bar", "bullish_pin_bar", "bearish_pin_bar",
-        "bullish_marubozu", "bearish_marubozu", "spinning_top",
+        "inside_bar", "outside_bar", "pin_bar", "marubozu", "spinning_top",
     }
-    # harami/pin_bar/marubozu unions were removed as exact duplicates of
-    # (bullish_X | bearish_X), which already appear individually above
-    # (see FEATURE_OPTIMIZATION_REPORT.md, Task 2).
     assert expected <= set(panel.series)
-    assert not ({"harami", "pin_bar", "marubozu"} & set(panel.series))
     for name, arr in panel.series.items():
         assert set(np.unique(arr)) <= {0.0, 1.0}, name

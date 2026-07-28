@@ -42,12 +42,6 @@ class TrendState:
     momentum:
         ATR-agnostic slope of recent swing prices per bar, as a fraction of
         the last close (e.g. 0.0001 = 1 pip per bar on a 1.0000 quote).
-    valid:
-        False when there weren't enough swings to score a direction (all
-        count/strength/duration/momentum fields are placeholder defaults in
-        that case, not a genuine "sideways" reading). Check this before
-        trusting the other fields -- see FEATURE_OPTIMIZATION_REPORT.md,
-        Task 3.
     """
 
     direction: TrendDirection
@@ -58,7 +52,6 @@ class TrendState:
     strength: float
     duration_bars: int
     momentum: float
-    valid: bool = False
 
 
 class TrendEngine:
@@ -101,7 +94,6 @@ class TrendEngine:
             strength=abs(score),
             duration_bars=duration,
             momentum=momentum,
-            valid=total > 0,
         )
 
 

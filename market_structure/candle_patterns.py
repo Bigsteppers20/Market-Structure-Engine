@@ -28,18 +28,26 @@ class PatternPanel:
         Mapping pattern name -> ``np.ndarray`` of 0/1 flags (full length).
     snapshot:
         Mapping pattern name -> value on the most recent candle.
-
-    Note
-    ----
-    There is no ``bullish_score``/``bearish_score`` composite: it was an
-    exact sum of the bullish/bearish flags below and carried no information
-    beyond them (removed per FEATURE_OPTIMIZATION_REPORT.md, Task 2). A
-    downstream model can reconstruct any weighted combination it needs from
-    the individual flags.
+    bullish_score, bearish_score:
+        Count of bullish / bearish patterns active on the last candle.
     """
 
     series: Dict[str, np.ndarray] = field(default_factory=dict)
     snapshot: Dict[str, float] = field(default_factory=dict)
+    bullish_score: float = 0.0
+    bearish_score: float = 0.0
+
+
+_BULLISH = {
+    "hammer", "inverted_hammer", "dragonfly_doji", "bullish_engulfing",
+    "morning_star", "piercing_line", "three_white_soldiers", "bullish_harami",
+    "bullish_pin_bar", "bullish_marubozu",
+}
+_BEARISH = {
+    "shooting_star", "gravestone_doji", "bearish_engulfing", "evening_star",
+    "dark_cloud_cover", "three_black_crows", "bearish_harami",
+    "bearish_pin_bar", "bearish_marubozu",
+}
 
 
 class CandlePatternEngine:
@@ -93,8 +101,7 @@ class CandlePatternEngine:
         p["bearish_engulfing"] = bear & bull1 & (c <= o1) & (o >= c1) & (body > body1)
         p["bullish_harami"] = bull & bear1 & (o >= c1) & (c <= o1) & (body < body1)
         p["bearish_harami"] = bear & bull1 & (o <= c1) & (c >= o1) & (body < body1)
-        # No `harami` union: exactly (bullish_harami | bearish_harami), zero
-        # information beyond those two flags (Task 2: redundant features).
+        p["harami"] = p["bullish_harami"] | p["bearish_harami"]
         mid1 = (o1 + c1) / 2.0
         p["piercing_line"] = bull & bear1 & (o < l1) & (c > mid1) & (c < o1)
         p["dark_cloud_cover"] = bear & bull1 & (o > h1) & (c < mid1) & (c > o1)
@@ -112,12 +119,19 @@ class CandlePatternEngine:
         p["outside_bar"] = (h > h1) & (lo < l1)
         p["bullish_pin_bar"] = (lower >= 0.66 * rng) & (upper <= 0.15 * rng)
         p["bearish_pin_bar"] = (upper >= 0.66 * rng) & (lower <= 0.15 * rng)
-        # No `pin_bar` union: exactly (bullish_pin_bar | bearish_pin_bar).
+        p["pin_bar"] = p["bullish_pin_bar"] | p["bearish_pin_bar"]
         p["bullish_marubozu"] = bull & (body_ratio >= 0.95)
         p["bearish_marubozu"] = bear & (body_ratio >= 0.95)
-        # No `marubozu` union: exactly (bullish_marubozu | bearish_marubozu).
+        p["marubozu"] = p["bullish_marubozu"] | p["bearish_marubozu"]
         p["spinning_top"] = small_body & (upper >= 0.25 * rng) & (lower >= 0.25 * rng) & ~tiny_body
 
         series = {k: np.nan_to_num(v.astype(float)) for k, v in p.items()}
         snapshot = {k: float(v[-1]) if n else 0.0 for k, v in series.items()}
-        return PatternPanel(series=series, snapshot=snapshot)
+        bull_score = sum(snapshot[k] for k in _BULLISH if k in snapshot)
+        bear_score = sum(snapshot[k] for k in _BEARISH if k in snapshot)
+        return PatternPanel(
+            series=series,
+            snapshot=snapshot,
+            bullish_score=float(bull_score),
+            bearish_score=float(bear_score),
+        )

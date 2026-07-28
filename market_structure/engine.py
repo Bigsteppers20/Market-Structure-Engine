@@ -35,7 +35,6 @@ from .fvg import FvgEngine
 from .indicators import IndicatorEngine
 from .liquidity import LiquidityEngine
 from .order_blocks import OrderBlockEngine
-from .spread import SpreadEngine
 from .support_resistance import SupportResistanceEngine
 from .swings import SwingDetector
 from .trend import TrendEngine
@@ -61,7 +60,6 @@ class MarketStructureEngine:
         self._ob_engine = OrderBlockEngine(self.config)
         self._indicator_engine = IndicatorEngine(self.config)
         self._pattern_engine = CandlePatternEngine(self.config)
-        self._spread_engine = SpreadEngine(self.config)
         self._df: Optional[pd.DataFrame] = None
         self._state: Optional[MarketState] = None
 
@@ -88,7 +86,6 @@ class MarketStructureEngine:
         order_blocks = self._ob_engine.analyze(df)
         panel = self._indicator_engine.analyze(df)
         patterns = self._pattern_engine.analyze(df)
-        spread = self._spread_engine.analyze(df)
 
         state = MarketState(
             n_candles=len(df),
@@ -102,10 +99,10 @@ class MarketStructureEngine:
             liquidity=liquidity,
             fvg=fvg,
             order_blocks=order_blocks,
-            spread=spread,
             indicators=panel.snapshot,
-            indicator_validity=panel.valid,
             patterns=patterns.snapshot,
+            pattern_bullish_score=patterns.bullish_score,
+            pattern_bearish_score=patterns.bearish_score,
             swings=swings,
             breaks=breaks,
             chochs=chochs,

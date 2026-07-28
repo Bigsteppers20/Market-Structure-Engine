@@ -141,17 +141,10 @@ class IndicatorPanel:
         Mapping of indicator name -> full ``np.ndarray`` (aligned to candles).
     snapshot:
         Mapping of indicator name -> last finite value as ``float``.
-    valid:
-        Mapping of indicator name -> 1.0/0.0 flag telling whether ``snapshot``
-        reflects a fully warmed-up reading (enough bars loaded for that
-        indicator's period) rather than an early-history placeholder. Always
-        check this before trusting a snapshot value -- a warm-up placeholder
-        and a genuine zero/flat reading are otherwise indistinguishable.
     """
 
     series: Dict[str, np.ndarray] = field(default_factory=dict)
     snapshot: Dict[str, float] = field(default_factory=dict)
-    valid: Dict[str, float] = field(default_factory=dict)
 
 
 class IndicatorEngine:
@@ -175,10 +168,7 @@ class IndicatorEngine:
         s["true_range"] = true_range(h, lo, c)
         s["atr"] = atr(h, lo, c, cfg.atr_period)
         s["rsi"] = rsi(c, cfg.rsi_period)
-        # MACD histogram is a pure linear combination (line - signal); both
-        # inputs already appear in the vector, so it is not stored separately
-        # (see FEATURE_OPTIMIZATION_REPORT.md, Task 2: redundant features).
-        s["macd"], s["macd_signal"], _macd_hist = macd(
+        s["macd"], s["macd_signal"], s["macd_histogram"] = macd(
             c, cfg.macd_fast, cfg.macd_slow, cfg.macd_signal
         )
         s["adx"] = adx(h, lo, c, cfg.adx_period)
@@ -187,24 +177,16 @@ class IndicatorEngine:
         s["cci"] = cci(h, lo, c, cfg.cci_period)
         s["stoch_k"], s["stoch_d"] = stochastic(h, lo, c, cfg.stoch_k, cfg.stoch_d)
         s["williams_r"] = williams_r(h, lo, c, cfg.williams_period)
-        # Bollinger middle band is dropped: identical formula/period to `sma`
-        # under default config, and fully reconstructable as sma +/- num_std
-        # * std_dev otherwise.
-        s["bb_upper"], _bb_mid, s["bb_lower"] = bollinger(
+        s["bb_upper"], s["bb_middle"], s["bb_lower"] = bollinger(
             c, cfg.bollinger_period, cfg.bollinger_std
         )
         s["vwap"] = vwap(h, lo, c, v)
 
         roll = pd.Series(c).rolling(cfg.rolling_window, min_periods=1)
-        # `rolling_mean` is dropped: identical to `sma` under default config
-        # (see FEATURE_OPTIMIZATION_REPORT.md). `rolling_median` is kept --
-        # a robust-statistic, genuinely distinct from the mean.
+        s["rolling_mean"] = roll.mean().to_numpy()
         s["rolling_median"] = roll.median().to_numpy()
-        # `rolling_variance` is dropped as a standalone feature: `std_dev` is
-        # a deterministic monotonic transform (sqrt) carrying the same
-        # information in more directly interpretable (price) units.
-        _rolling_variance = np.nan_to_num(roll.var(ddof=0).to_numpy())
-        s["std_dev"] = np.sqrt(_rolling_variance)
+        s["rolling_variance"] = np.nan_to_num(roll.var(ddof=0).to_numpy())
+        s["std_dev"] = np.sqrt(s["rolling_variance"])
         returns = pd.Series(c).pct_change().fillna(0.0)
         s["volatility"] = (
             returns.rolling(cfg.rolling_window, min_periods=2).std(ddof=0).fillna(0.0).to_numpy()
@@ -227,61 +209,13 @@ class IndicatorEngine:
         ).sum().to_numpy()
         s["volume_ratio"] = safe_divide(v, np.roll(v, 1), fill=1.0)
         s["volume_ratio"][0] = 1.0
-        has_tick_volume = "tick_volume" in df.columns
-        if has_tick_volume:
+        if "tick_volume" in df.columns:
             s["tick_volume"] = df["tick_volume"].to_numpy(dtype=float)
         else:
-            # No real tick-volume feed: emit NaN-safe zeros but mark the
-            # feature invalid rather than letting 0.0 masquerade as a real
-            # reading (see FEATURE_OPTIMIZATION_REPORT.md, Task 5).
             s["tick_volume"] = np.zeros_like(v)
 
         snapshot = {name: _last_finite(arr) for name, arr in s.items()}
-        n = len(df)
-        warmup = _warmup_requirements(cfg)
-        valid = {name: float(n >= warmup.get(name, 1)) for name in s}
-        valid["tick_volume"] = float(has_tick_volume)
-        return IndicatorPanel(series=s, snapshot=snapshot, valid=valid)
-
-
-def _warmup_requirements(cfg: EngineConfig) -> Dict[str, int]:
-    """Minimum bar count for each indicator's snapshot to be a statistically
-    warmed-up reading rather than an early-history placeholder.
-
-    Used to populate :attr:`IndicatorPanel.valid`. Values are documented
-    approximations (e.g. ADX is conservatively given 2x its period to allow
-    its internal DI smoothing to stabilize), not exact statistical proofs --
-    see FEATURE_OPTIMIZATION_REPORT.md, Task 3.
-    """
-    warmup: Dict[str, int] = {f"ema_{p}": p for p in cfg.ema_periods}
-    warmup.update(
-        sma=cfg.sma_period,
-        true_range=1,
-        atr=cfg.atr_period,
-        rsi=cfg.rsi_period,
-        macd=max(cfg.macd_fast, cfg.macd_slow),
-        macd_signal=max(cfg.macd_fast, cfg.macd_slow) + cfg.macd_signal,
-        adx=cfg.adx_period * 2,
-        momentum=cfg.momentum_period,
-        roc=cfg.roc_period,
-        cci=cfg.cci_period,
-        stoch_k=cfg.stoch_k,
-        stoch_d=cfg.stoch_k + cfg.stoch_d,
-        williams_r=cfg.williams_period,
-        bb_upper=cfg.bollinger_period,
-        bb_lower=cfg.bollinger_period,
-        vwap=1,
-        rolling_median=cfg.rolling_window,
-        std_dev=cfg.rolling_window,
-        volatility=cfg.rolling_window + 1,
-        volume_ma=cfg.volume_ma_period,
-        relative_volume=cfg.volume_ma_period,
-        volume_spike=cfg.volume_ma_period,
-        volume_trend=cfg.volume_ma_period * 2,
-        volume_delta=cfg.volume_ma_period,
-        volume_ratio=2,
-    )
-    return warmup
+        return IndicatorPanel(series=s, snapshot=snapshot)
 
 
 def _last_finite(arr: np.ndarray) -> float:
