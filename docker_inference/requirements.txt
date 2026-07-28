@@ -5,17 +5,25 @@ pandas>=2.0
 numpy>=1.24
 scipy>=1.10
 
-# The actual model -- installs the `market_structure` package (and its
-# siblings, incl. `logistic_regression`) from the upstream repo. The [ml]
-# extra additionally pulls in scikit-learn, required to unpickle
-# HF_REPO_ID's model.joblib (a logistic_regression.classification_model.
-# ClassificationModel, which internally holds a sklearn LogisticRegression
-# estimator -- joblib.load() fails with ModuleNotFoundError without it).
+# The actual model -- installs market_structure, ml_pipeline, training,
+# and logistic_regression (setuptools packages list) from the upstream
+# repo, which now declares scikit-learn/joblib as base dependencies too
+# (needed to unpickle HF_REPO_ID's model.joblib, a
+# logistic_regression.classification_model.ClassificationModel wrapping a
+# sklearn LogisticRegression estimator, whose calibration path also uses
+# sklearn.frozen.FrozenEstimator, added in scikit-learn 1.6). No [ml]
+# extra -- it never existed upstream (only viz/dev do).
 # Pin a commit/tag once one exists; @main tracks the default branch in the
 # meantime. Only imported/loaded when USE_MOCK_MODEL != "1" (see
 # inference.py).
-market-structure-engine[ml] @ git+https://github.com/Bigsteppers20/Market-Structure-Engine.git@main
+market-structure-engine @ git+https://github.com/Bigsteppers20/Market-Structure-Engine.git@main
 
 # Downloads the private HF_REPO_ID artifact bundle at startup (see
 # inference.py). Only imported when USE_MOCK_MODEL != "1".
 huggingface_hub==1.24.0
+joblib>=1.3
+
+# Belt-and-suspenders explicit pin matching the upstream package's own
+# base dependency (see comment above) -- unpickling model.joblib needs
+# sklearn.frozen.FrozenEstimator, added in scikit-learn 1.6.
+scikit-learn>=1.6
