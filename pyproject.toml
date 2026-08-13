@@ -15,7 +15,8 @@ dependencies = [
     "scikit-learn>=1.6",
     "joblib>=1.3",
     "uvicorn",
-    "fastapi"      # <-- added
+    "fastapi",
+    "requests"      # <-- added
 ]
 
 [project.optional-dependencies]
