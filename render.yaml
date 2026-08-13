@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: forex-dynamics-engine   # 🔑 CHANGE THIS to a unique name on Render
+    runtime: python3
+    buildCommand: pip install .
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
