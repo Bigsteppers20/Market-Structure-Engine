@@ -82,6 +82,12 @@ class EngineConfig:
     compression_ratio: float = 0.66
     """Current ATR / rolling ATR mean below this => compression regime."""
 
+    # --- spread ---------------------------------------------------------
+    spread_window: int = 20
+    """Rolling window for spread average / volatility / percentile features."""
+    spread_spike_multiple: float = 2.0
+    """Spread above this multiple of its rolling average flags a spread spike."""
+
     # --- data loader ---------------------------------------------------------
     fill_missing_candles: bool = False
     """When True, reindex to a regular grid and forward-fill gaps."""
