@@ -76,7 +76,7 @@ class EvaluationEngine:
             confusion_matrix=self._confusion_matrix(task_type, y_test, y_test_pred),
             residual_analysis=self._residual_analysis(task_type, y_test, y_test_pred),
             calibration=self._calibration(task_type, y_test, y_test_proba),
-            feature_importance=feature_importance if feature_importance else PLACEHOLDER,
+            feature_importance=feature_importance if feature_importance is not None else PLACEHOLDER,
         )
 
     # ------------------------------------------------------------------ #
@@ -85,25 +85,25 @@ class EvaluationEngine:
         if val_metrics == PLACEHOLDER or test_metrics == PLACEHOLDER:
             return {"status": PLACEHOLDER}
         primary = "r2" if task_type == "regression" else "accuracy"
+        val_primary = val_metrics.get(primary)
+        test_primary = test_metrics.get(primary)
         return {
             "primary_metric": primary,
-            "validation": val_metrics.get(primary),
-            "testing": test_metrics.get(primary),
+            "validation": val_primary,
+            "testing": test_primary,
             "generalization_gap": (
-                (val_metrics.get(primary) - test_metrics.get(primary))
-                if val_metrics.get(primary) is not None and test_metrics.get(primary) is not None
-                else None
+                (val_primary - test_primary) if val_primary is not None and test_primary is not None else None
             ),
         }
 
     @staticmethod
-    def _confusion_matrix(task_type: str, y_test, y_test_pred) -> Any:
+    def _confusion_matrix(task_type: str, y_test: Optional[np.ndarray], y_test_pred: Optional[np.ndarray]) -> Any:
         if task_type != "classification" or y_test is None or y_test_pred is None:
             return PLACEHOLDER
         return confusion_matrix(y_test, y_test_pred).tolist()
 
     @staticmethod
-    def _residual_analysis(task_type: str, y_test, y_test_pred) -> Any:
+    def _residual_analysis(task_type: str, y_test: Optional[np.ndarray], y_test_pred: Optional[np.ndarray]) -> Any:
         if task_type != "regression" or y_test is None or y_test_pred is None:
             return PLACEHOLDER
         residuals = np.asarray(y_test, dtype=float) - np.asarray(y_test_pred, dtype=float)
@@ -116,7 +116,7 @@ class EvaluationEngine:
         }
 
     @staticmethod
-    def _calibration(task_type: str, y_test, y_test_proba) -> Any:
+    def _calibration(task_type: str, y_test: Optional[np.ndarray], y_test_proba: Optional[np.ndarray]) -> Any:
         if task_type != "classification" or y_test is None or y_test_proba is None:
             return PLACEHOLDER
         y_test_arr = np.asarray(y_test)
